@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PVZ 合成推理助手</title>
+  <link rel="icon" href="%BASE_URL%favicon.svg" type="image/svg+xml">
+  <script type="module" src="/src/ui/app.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand-mark" aria-hidden="true">1<span>+</span>2</div>
+    <div class="brand">合成推理助手</div>
+    <div class="brand-sub">PVZ · LOCAL COMPANION</div>
+    <nav aria-label="主要界面">
+      <button id="nav-game" class="nav-item"><span>01</span> 对局助手</button>
+      <button id="nav-rules" class="nav-item"><span>02</span> 合成表</button>
+    </nav>
+    <div class="sidebar-note">
+      <div class="connection"><i></i> 浏览器本地计算</div>
+      <p>十种素材，十个位置。<br>让每一次尝试更有依据。</p>
+      <div id="save-status" role="status">正在读取浏览器存档…</div>
+      <p>数据只存在此浏览器，请定期导出备份。</p>
+      <button id="refresh" class="text-button">重新读取存档</button>
+    </div>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div><div class="eyebrow">YOUR NEXT MOVE</div><h1 id="page-title">合成表</h1></div>
+      <div class="header-actions">
+        <button id="export-rules" class="secondary">导出规则</button>
+        <button id="export-session" class="secondary">导出对局</button>
+        <button id="import-button" class="secondary">导入 JSON</button>
+        <input id="import-file" type="file" accept=".json,application/json" hidden>
+      </div>
+    </header>
+    <div id="message" class="message" role="alert" hidden></div>
+    <div id="storage-recovery" class="lock-banner" hidden>
+      <p>输入仍保留。可重试保存或导出备份；刷新前请确认已保存。</p>
+      <button id="retry-save" class="secondary">重试保存</button>
+      <button id="backup-input" class="secondary">导出当前输入</button>
+    </div>
+    <div id="compute-status" class="lock-banner" hidden>
+      <span>正在计算，页面仍可查看。较慢设备可能需要更长时间。</span>
+      <button id="cancel-compute" class="secondary">取消计算</button>
+    </div>
+    <section id="rules-page" hidden>
+      <div class="intro-row">
+        <div><h2>先认识你的合成规则</h2><p>素材按原顺序编号 1–10。选一种状态，再点击表格；1+2 与 2+1 会同步，共 55 个组合。</p></div>
+        <div id="rules-count" class="count-badge">0 / 55 已确认</div>
+      </div>
+      <div id="rules-locked" class="lock-banner" hidden>本局进行中，正在查看锁定的规则快照。结束本局后可以修改合成表。</div>
+      <div class="rules-layout">
+        <div class="panel matrix-panel">
+          <div class="paint-toolbar" aria-label="选择要填写的配方状态">
+            <button data-paint="true" class="paint selected">✓ 可合成</button>
+            <button data-paint="false" class="paint">× 不可合成</button>
+            <button data-paint="null" class="paint">? 未确认</button>
+          </div>
+          <div class="matrix-scroll"><table id="matrix" aria-label="1 到 10 合成规则表"></table></div>
+          <div class="matrix-footer"><span id="rules-breakdown"></span><span>对角线表示两个相同素材</span></div>
+        </div>
+        <aside class="rules-side">
+          <div class="panel">
+            <h3>这份规则</h3>
+            <label for="rules-note" class="field-label">游戏版本 / 备注</label>
+            <input id="rules-note" maxlength="120" placeholder="例如：2026.10 实测规则">
+            <p class="hint">在对局开始前确认完整。开始后，这份规则会锁定到本局结束。</p>
+            <button id="all-legal" class="secondary full">全部设为可合成</button>
+            <button id="all-unknown" class="text-button full">重置为未确认</button>
+          </div>
+          <div class="panel quiet-panel">
+            <h3>准备好后就开始</h3>
+            <ol class="steps"><li>在游戏里试出合法组合。</li><li>在表格里记录结果。</li><li>选择算法，录入每轮反馈。</li></ol>
+            <button id="to-game" class="primary full">前往对局助手 →</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+    <section id="game-page" hidden>
+      <div id="setup" class="panel setup-panel">
+        <div><div class="eyebrow">NEW GAME</div><h2>选一个思路，开始推理</h2><p>两种方法使用同一份合成表。算法在本局内保持不变。</p></div>
+        <div id="algorithm-options" class="algorithm-options"></div>
+        <div class="setup-footer"><span id="start-hint" class="hint"></span><button id="start" class="primary">开始新对局 →</button></div>
+      </div>
+      <div id="board" hidden>
+        <div class="game-heading">
+          <div><div id="game-algorithm" class="eyebrow"></div><h2 id="round-title"></h2><p id="game-meta"></p></div>
+          <div class="game-actions"><button id="undo" class="secondary">撤回上一轮</button><button id="end" class="secondary danger-text">结束本局</button></div>
+        </div>
+        <div id="completed-banner" class="completion-banner" hidden></div>
+        <div class="panel board-panel">
+          <div class="board-toolbar">
+            <div><h3>本轮填写</h3><p class="hint">按槽位顺序在游戏中填写，再录入每格反馈。配方 1+10 表示素材 1 与素材 10。</p></div>
+            <div><label class="check-label"><input id="edit-query" type="checkbox"> 修改实际填写</label><button id="copy-query" class="text-button">复制配方</button></div>
+          </div>
+          <div id="slot-grid" class="slot-grid"></div>
+          <div class="feedback-footer">
+            <label for="quick-feedback">快速录入 <input id="quick-feedback" maxlength="100" placeholder="十位 G / B / P / X" spellcheck="false" autocomplete="off"></label>
+            <button id="submit" class="primary">提交反馈，计算下一轮 →</button>
+          </div>
+          <p class="hint feedback-key">G 完全正确　B 栏位错误　P 部分正确　X 完全错误　 · 蓝色优先于素材匹配。</p>
+        </div>
+        <details class="panel reasoning">
+          <summary>查看当前推理信息 <span id="reasoning-summary"></span></summary>
+          <div id="reasoning-content"></div>
+        </details>
+        <div class="history-heading"><h3>尝试记录</h3><span class="hint">已提交的每一步，都保存在这里。</span></div>
+        <div class="panel history-panel"><div id="history"></div></div>
+      </div>
+      <p class="method-note">两种方法均为启发式策略，不保证任意局面的最少轮数。</p>
+    </section>
+  </main>
+</body>
+</html>

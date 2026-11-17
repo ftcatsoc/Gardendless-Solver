@@ -1,3 +1,4 @@
+import {t, setLanguage, readLanguage, saveLanguage, translatePage} from './i18n.js';
 import './app.css';
 import {Store} from '../store.js';
 import {BrowserStorage} from '../storage.js';
@@ -25,10 +26,10 @@ const el = (tag, className, text) => {
   return node;
 };
 function notify(text, success = false) {
-  $('message').textContent = recipeMessage(text); $('message').className = `message${success ? ' success' : ''}`;
+  $('message').textContent = recipeMessage(text); translatePage(); $('message').className = `message${success ? ' success' : ''}`;
   $('message').hidden = !text;
 }
-function saveStatus(text) { $('save-status').textContent = text; }
+function saveStatus(text) { $('save-status').textContent = text; translatePage(); }
 function showFailure(error) {
   if (error.status === 409) conflicted = true;
   const message = error.name === 'AbortError' ? '计算已取消，输入仍保留。' : error.message;
@@ -71,8 +72,8 @@ async function flush() {
 async function perform(type, payload = {}) {
   if (busy) return;
   busy = true; controller = new AbortController(); notify(''); renderDisabled();
-  const originalLabel = $('submit').textContent;
-  if (type === 'submit') $('submit').textContent = '正在推理…';
+  const originalLabel = '提交反馈，计算下一轮 →';
+  if (type === 'submit') { $('submit').textContent = '正在推理…'; translatePage(); }
   try {
     await flush();
     const actual = typeof payload === 'function' ? payload() : payload;
@@ -88,13 +89,15 @@ async function perform(type, payload = {}) {
   finally { busy = false; $('submit').textContent = originalLabel; render(); }
 }
 function setTab(value) { tab = value; renderPages(); }
-function renderPages() {
+function renderPages() { renderPagesContent(); translatePage(); }
+function renderPagesContent() {
   $('rules-page').hidden = tab !== 'rules'; $('game-page').hidden = tab !== 'game';
   $('nav-rules').classList.toggle('active', tab === 'rules');
   $('nav-game').classList.toggle('active', tab === 'game');
   $('page-title').textContent = tab === 'rules' ? '合成表' : '对局助手';
 }
-function renderRules() {
+function renderRules() { renderRulesContent(); translatePage(); }
+function renderRulesContent() {
   const rules = viewingRules(), values = Object.values(rules.recipes);
   const known = values.filter(v => v !== null).length, legal = values.filter(v => v === true).length;
   $('rules-count').textContent = `${known} / 55 已确认`;
@@ -112,8 +115,8 @@ function renderRules() {
       const status = value === true ? '可合成' : value === false ? '不可合成' : '未确认';
       const td = el('td'), button = el('button',
         `${value === true ? 'legal' : value === false ? 'illegal' : 'unknown'}${a === b ? ' diagonal' : ''}`);
-      button.setAttribute('aria-label', `${materialLabel(a)} + ${materialLabel(b)}：${status}`);
-      button.title = `${recipeLabel(q)} · ${status}`;
+      button.setAttribute('aria-label', `${materialLabel(a)} + ${materialLabel(b)}：${t(status)}`);
+      button.title = `${recipeLabel(q)} · ${t(status)}`;
       button.append(el('span', '', recipeLabel(q)), el('small', '', value === true ? '✓' : value === false ? '×' : '·'));
       button.disabled = !loaded || isActive() || busy;
       button.onclick = () => {
@@ -124,20 +127,21 @@ function renderRules() {
     $('matrix').append(row);
   }
 }
-function renderSetup() {
+function renderSetup() { renderSetupContent(); translatePage(); }
+function renderSetupContent() {
   $('setup').hidden = isActive();
   $('algorithm-options').replaceChildren();
   for (const a of state.algorithms) {
     const label = el('label', 'algorithm-card'), input = document.createElement('input');
     input.type = 'radio'; input.name = 'algorithm'; input.value = a.id; input.checked = a.id === selectedAlgorithm;
     input.onchange = () => { selectedAlgorithm = a.id; };
-    label.append(input, el('strong', '', a.name), el('p', '', a.description));
+    label.append(input, el('strong', '', t(a.name)), el('p', '', t(a.description)));
     $('algorithm-options').append(label);
   }
   const known = recipes.every(q => localRules.recipes[q] !== null);
   const legal = recipes.filter(q => localRules.recipes[q] === true).length;
   $('start-hint').textContent = !known ? '请先在合成表中确认全部 55 个组合。' :
-    legal < 10 ? '至少需要十个合法配方。' : `${legal} 个合法配方已准备好 · ${localRules.note || '未填写版本备注'}`;
+    legal < 10 ? '至少需要十个合法配方。' : `${legal} 个合法配方已准备好 · ${localRules.note || t('未填写版本备注')}`;
   $('start').disabled = busy || !loaded || !known || legal < 10;
 }
 function responseChars() { return (pending?.response || '').toUpperCase().replace(/\s/g, '').split(''); }
@@ -146,15 +150,16 @@ function updateFeedbackButtons() {
   for (const button of document.querySelectorAll('.feedback-button'))
     button.classList.toggle('selected', chars[Number(button.dataset.slot)] === button.dataset.feedback);
 }
-function renderGame() {
+function renderGame() { renderGameContent(); translatePage(); }
+function renderGameContent() {
   const game = state.game;
   $('board').hidden = !game;
   if (!game) return;
   const active = isActive(), name = state.algorithms.find(a => a.id === game.algorithmId)?.name || game.algorithmId;
-  $('game-algorithm').textContent = `${name} · ${game.algorithmVersion}`;
+  $('game-algorithm').textContent = `${t(name)} · ${game.algorithmVersion}`;
   $('round-title').textContent = active ? `第 ${game.history.length + 1} 轮` :
     game.status === 'completed' ? `${game.history.length} 轮，全部找到` : '本局已结束';
-  $('game-meta').textContent = `${Object.keys(game.advice.locked).length} / 10 格已锁定 · ${game.rulesSnapshot.note || '本局规则快照'}`;
+  $('game-meta').textContent = `${Object.keys(game.advice.locked).length} / 10 格已锁定 · ${game.rulesSnapshot.note || t('本局规则快照')}`;
   $('completed-banner').hidden = game.status !== 'completed';
   $('completed-banner').textContent = '✓ 十个位置已全部正确。可以导出本局记录，或调整规则后开始下一局。';
   $('slot-grid').replaceChildren();
@@ -173,7 +178,7 @@ function renderGame() {
     for (const [code, [short, full]] of Object.entries(feedback)) {
       const button = el('button', `feedback-button ${code}${chars[i] === code ? ' selected' : ''}`, short);
       button.dataset.slot = i; button.dataset.feedback = code;
-      button.setAttribute('aria-label', `第 ${i + 1} 格：${full}`);
+      button.setAttribute('aria-label', `第 ${i + 1} 格：${t(full)}`);
       button.disabled = !active || locked || busy;
       button.onclick = () => {
         const next = responseChars();
@@ -190,8 +195,8 @@ function renderGame() {
   $('reasoning-summary').textContent = `${game.advice.present.length} 株已知存在 · ${game.advice.absent.length} 株已排除`;
   const reasoning = $('reasoning-content'); reasoning.replaceChildren();
   reasoning.append(el('p', '', `候选数（按槽位）：${game.advice.candidates.map(c => c.length).join(' / ')}`));
-  reasoning.append(el('p', '', `已知存在：${game.advice.present.map(recipeLabel).join('、') || '暂无'}`));
-  reasoning.append(el('p', '', `已排除：${game.advice.absent.map(recipeLabel).join('、') || '暂无'}`));
+  reasoning.append(el('p', '', `已知存在：${game.advice.present.map(recipeLabel).join('、') || t('暂无')}`));
+  reasoning.append(el('p', '', `已排除：${game.advice.absent.map(recipeLabel).join('、') || t('暂无')}`));
   $('history').replaceChildren();
   if (!game.history.length) $('history').append(el('div', 'empty-history', '第一轮反馈提交后，记录会显示在这里。'));
   for (const [index, turn] of [...game.history.entries()].reverse()) {
@@ -271,20 +276,20 @@ $('rules-note').oninput = () => {
   localRules.note = $('rules-note').value; rulesDirty = true; rulesEpoch++; renderSetup(); scheduleSave();
 };
 function bulk(value) {
-  if (value === null && !confirm('将全部组合恢复为未确认？已导出的备份不受影响。')) return;
+  if (value === null && !confirm(t('将全部组合恢复为未确认？已导出的备份不受影响。'))) return;
   localRules.recipes = Object.fromEntries(recipes.map(q => [q, value]));
   rulesDirty = true; rulesEpoch++; renderRules(); renderSetup(); renderDisabled(); scheduleSave();
 }
 $('all-legal').onclick = () => bulk(true);
 $('all-unknown').onclick = () => bulk(null);
 $('start').onclick = () => {
-  if (state.game?.history.length && !confirm('开始新局会替换当前记录。需要保留时请先导出对局。继续？')) return;
+  if (state.game?.history.length && !confirm(t('开始新局会替换当前记录。需要保留时请先导出对局。继续？'))) return;
   perform('start', {algorithmId: selectedAlgorithm});
 };
 $('submit').onclick = () => perform('submit', () => ({...gameIdentity(), pending: structuredClone(pending)}));
 $('undo').onclick = () => perform('undo', () => ({gameId: state.game.id}));
 $('end').onclick = () => {
-  if (confirm('结束本局并解锁合成表？本局记录仍会保留，开始新局前可以导出。'))
+  if (confirm(t('结束本局并解锁合成表？本局记录仍会保留，开始新局前可以导出。')))
     perform('end', () => gameIdentity());
 };
 $('edit-query').onchange = renderGame;
@@ -304,13 +309,13 @@ $('import-file').onchange = async () => {
   if (file.size > 2 * 1024 * 1024) return notify('导入文件不能超过 2 MB。');
   try {
     const contents = JSON.parse(await file.text());
-    if (state.game && !confirm('导入将替换相应的规则或对局，请确认已备份需要保留的记录。')) return;
+    if (state.game && !confirm(t('导入将替换相应的规则或对局，请确认已备份需要保留的记录。'))) return;
     await perform('import', {file: contents});
   } catch { notify('文件不是有效的 JSON。'); }
 };
 $('refresh').onclick = async () => {
   if (busy) return;
-  if ((rulesDirty || draftDirty) && !confirm('重新读取会放弃页面中尚未保存的输入，继续？')) return;
+  if ((rulesDirty || draftDirty) && !confirm(t('重新读取会放弃页面中尚未保存的输入，继续？'))) return;
   clearTimeout(timer); busy = true; controller = new AbortController(); renderDisabled();
   try {
     if (saving) await saving.catch(() => {});
@@ -321,6 +326,18 @@ $('refresh').onclick = async () => {
 window.addEventListener('beforeunload', event => {
   if (rulesDirty || draftDirty || busy) { event.preventDefault(); event.returnValue = ''; }
 });
+const languageKey = 'pvz-helper:language:' + new URL(import.meta.env.BASE_URL, location.origin).pathname;
+let preferenceStorage;
+try { preferenceStorage = window.localStorage; } catch { /* Language still works for this visit. */ }
+setLanguage(readLanguage(preferenceStorage, languageKey));
+$('language').value = document.documentElement.lang = readLanguage(preferenceStorage, languageKey);
+$('language').onchange = () => {
+  setLanguage($('language').value);
+  saveLanguage(preferenceStorage, languageKey, $('language').value);
+  // Re-render from pending/localRules, preserving unsaved input and active work.
+  if (state) render();
+  translatePage();
+};
 state = store.snapshot(); localRules = structuredClone(state.rules); render();
 busy = true; controller = new AbortController(); renderDisabled();
 load().catch(showFailure).finally(() => {busy = false; render();});

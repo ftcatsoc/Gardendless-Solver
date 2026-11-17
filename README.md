@@ -73,3 +73,7 @@
 ## 贡献声明
 
 交互界面是 GPT-6 Astra 所作，联合抽样搜索算法也出自该模型；轻量探针算法是发布者写的。
+
+界面右上角的「语言 / Language」可切换简体中文与 English，并在此浏览器记住选择。
+
+Use “语言 / Language” at the top right to switch to English. Your choice is remembered in this browser. Switching languages preserves your recipes, draft input and game history; your notes are kept as written.
